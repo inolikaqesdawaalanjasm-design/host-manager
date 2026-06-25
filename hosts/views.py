@@ -12,7 +12,14 @@ from .serializers import (
     HostSerializer,
     OrganizationSerializer,
 )
-from .services import create_seed_test_data, generate_daily_statistics, has_seed_test_data, ping_all_hosts_and_log, ping_host_and_log
+from .services import (
+    create_seed_test_data,
+    generate_daily_statistics,
+    has_any_business_data,
+    has_seed_test_data,
+    ping_all_hosts_and_log,
+    ping_host_and_log,
+)
 
 
 class BaseModelViewSet(viewsets.ModelViewSet):
@@ -164,5 +171,7 @@ class HostDailyStatisticViewSet(viewsets.ReadOnlyModelViewSet):
 @api_view(["GET", "POST"])
 def seed_test_data(request):
     if request.method == "GET":
-        return Response({"seeded": has_seed_test_data()})
+        seeded = has_seed_test_data()
+        has_data = has_any_business_data()
+        return Response({"seeded": seeded, "has_data": has_data, "can_seed": not seeded and not has_data})
     return Response(create_seed_test_data())

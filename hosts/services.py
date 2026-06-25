@@ -5,7 +5,7 @@ import time
 from django.utils import timezone
 
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from .models import City, ComputerRoom, Employee, Host, HostConnectivityLog, HostDailyStatistic, Organization
 
@@ -78,7 +78,11 @@ def generate_daily_statistics():
     statistics = (
         Host.objects.filter(is_deleted=False)
         .values("computer_room_id", "computer_room__city_id")
-        .annotate(host_count=Count("id"))
+        .annotate(
+            host_count=Count("id"),
+            reachable_count=Count("id", filter=Q(last_check_result=True)),
+            unreachable_count=Count("id", filter=Q(last_check_result=False)),
+        )
     )
 
     rows = []
@@ -87,7 +91,11 @@ def generate_daily_statistics():
             statistic_date=today,
             city_id=item["computer_room__city_id"],
             computer_room_id=item["computer_room_id"],
-            defaults={"host_count": item["host_count"]},
+            defaults={
+                "host_count": item["host_count"],
+                "reachable_count": item["reachable_count"],
+                "unreachable_count": item["unreachable_count"],
+            },
         )
         rows.append(
             {
@@ -96,6 +104,8 @@ def generate_daily_statistics():
                 "city_id": statistic.city_id,
                 "computer_room_id": statistic.computer_room_id,
                 "host_count": statistic.host_count,
+                "reachable_count": statistic.reachable_count,
+                "unreachable_count": statistic.unreachable_count,
             }
         )
 
@@ -109,10 +119,26 @@ def has_seed_test_data():
     return Organization.objects.filter(code=DEMO_MARKER_CODE).exists()
 
 
+def has_any_business_data():
+    return any(
+        [
+            City.objects.filter(is_deleted=False).exists(),
+            Organization.objects.filter(is_deleted=False).exists(),
+            Employee.objects.filter(is_deleted=False).exists(),
+            ComputerRoom.objects.filter(is_deleted=False).exists(),
+            Host.objects.filter(is_deleted=False).exists(),
+            HostDailyStatistic.objects.filter(is_deleted=False).exists(),
+            HostConnectivityLog.objects.filter(is_deleted=False).exists(),
+        ]
+    )
+
+
 @transaction.atomic
 def create_seed_test_data():
     if has_seed_test_data():
         return {"created": False, "message": "测试数据已经创建过，不能重复创建"}
+    if has_any_business_data():
+        return {"created": False, "message": "当前系统已有数据，只有数据为空时才可添加测试数据"}
 
     beijing = City.objects.create(name="演示北京", code="BJ-DEMO", region="华北", remark="测试数据")
     shanghai = City.objects.create(name="演示上海", code="SH-DEMO", region="华东", remark="测试数据")
@@ -145,8 +171,8 @@ def create_seed_test_data():
 
     Host.objects.create(
         hostname="demo-web-01",
-        ip_address="127.0.0.2",
-        manage_ip="127.0.0.2",
+        ip_address="127.0.0.1",
+        manage_ip="127.0.0.1",
         computer_room=bj_room,
         organization=ops_org,
         owner=zhangsan,

@@ -48,7 +48,7 @@ class HostAdmin(admin.ModelAdmin):
 
 @admin.register(HostDailyStatistic)
 class HostDailyStatisticAdmin(admin.ModelAdmin):
-    list_display = ("id", "statistic_date", "city", "computer_room", "host_count")
+    list_display = ("id", "statistic_date", "city", "computer_room", "host_count", "reachable_count", "unreachable_count")
     list_filter = ("statistic_date", "city", "computer_room")
     list_select_related = ("city", "computer_room")
 

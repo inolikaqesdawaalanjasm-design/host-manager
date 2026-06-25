@@ -216,6 +216,8 @@ class HostDailyStatistic(BaseModel):
         verbose_name="机房",
     )
     host_count = models.PositiveIntegerField(default=0, verbose_name="主机数量")
+    reachable_count = models.PositiveIntegerField(default=0, verbose_name="可达数量")
+    unreachable_count = models.PositiveIntegerField(default=0, verbose_name="不可达数量")
 
     class Meta:
         db_table = "host_daily_statistic"

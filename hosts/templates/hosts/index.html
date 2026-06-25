@@ -564,13 +564,14 @@
         readonly: true,
         columns: [
           ["statistic_date", "统计日期"], ["city_name", "城市"], ["computer_room_name", "机房"],
-          ["host_count", "主机数量"], ["created_at", "写入时间"], ["updated_at", "更新时间"]
+          ["host_count", "主机数量"], ["reachable_count", "可达数"], ["unreachable_count", "不可达数"],
+          ["created_at", "写入时间"], ["updated_at", "更新时间"]
         ],
         fields: []
       }
     };
 
-    const state = { current: "hosts", editing: null, cache: {}, filtered: [], busyPing: null, seeded: false };
+    const state = { current: "hosts", editing: null, cache: {}, filtered: [], busyPing: null, seeded: false, canSeed: false, hasData: false };
     const nav = document.getElementById("nav");
     const thead = document.getElementById("thead");
     const tbody = document.getElementById("tbody");
@@ -640,23 +641,31 @@
     async function loadSeedStatus() {
       const result = await api(endpoints.seed);
       state.seeded = result.seeded;
+      state.canSeed = result.can_seed;
+      state.hasData = result.has_data;
       renderSeedButton();
       return result.seeded;
     }
 
     function renderSeedButton() {
       const button = document.getElementById("seedDataBtn");
-      if (state.seeded) {
-        button.disabled = true;
-        button.textContent = "测试数据已添加";
-      } else {
+      if (state.canSeed) {
         button.disabled = false;
         button.textContent = "添加测试数据";
+        button.title = "当前数据库为空，可以一键添加测试数据";
+      } else if (state.seeded) {
+        button.disabled = false;
+        button.textContent = "测试数据已添加";
+        button.title = "测试数据已经添加过，只能添加一次";
+      } else {
+        button.disabled = false;
+        button.textContent = "已有数据，不能添加";
+        button.title = "只有数据为空时才可添加测试数据";
       }
     }
 
     function openSeedPrompt() {
-      if (!state.seeded) seedModal.classList.add("show");
+      if (state.canSeed) seedModal.classList.add("show");
     }
 
     function closeSeedPrompt() {
@@ -825,6 +834,10 @@
       renderTable();
       document.getElementById("createBtn").style.display = resources[state.current].readonly ? "none" : "";
       document.getElementById("pingAllBtn").style.display = state.current === "hosts" ? "" : "none";
+      const pingAllButton = document.getElementById("pingAllBtn");
+      const hasHosts = (state.cache.hosts || []).length > 0;
+      pingAllButton.disabled = state.current === "hosts" && !hasHosts;
+      pingAllButton.title = hasHosts ? "测试所有未删除主机连通性" : "主机列表为空，不能检测全部数据";
       document.getElementById("runScheduledBtn").style.display = state.current === "logs" ? "" : "none";
       document.getElementById("runStatisticBtn").style.display = state.current === "statistics" ? "" : "none";
       renderSeedButton();
@@ -964,6 +977,10 @@
 
     async function pingAllHosts() {
       const button = document.getElementById("pingAllBtn");
+      if (!(state.cache.hosts || []).length) {
+        showToast("无法测试", "主机列表为空，不能检测全部数据");
+        return;
+      }
       setButtonLoading(button, "测试中");
       showToast("正在批量探测", "会逐台 ping 所有未删除主机，并写入连通性日志");
       try {
@@ -1018,6 +1035,10 @@
     }
 
     async function createSeedData() {
+      if (!state.canSeed) {
+        showToast("不能添加测试数据", state.seeded ? "测试数据已经添加过，只能添加一次" : "只有数据为空时才可添加测试数据");
+        return;
+      }
       const buttons = [document.getElementById("seedDataBtn"), document.getElementById("confirmSeedBtn")];
       buttons.forEach(button => setButtonLoading(button, "创建中"));
       try {
