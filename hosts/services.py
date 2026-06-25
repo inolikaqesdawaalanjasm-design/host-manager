@@ -4,9 +4,10 @@ import time
 
 from django.utils import timezone
 
+from django.db import transaction
 from django.db.models import Count
 
-from .models import Host, HostConnectivityLog, HostDailyStatistic
+from .models import City, ComputerRoom, Employee, Host, HostConnectivityLog, HostDailyStatistic, Organization
 
 
 def ping_host_and_log(host, check_type="manual"):
@@ -99,3 +100,108 @@ def generate_daily_statistics():
         )
 
     return {"statistic_date": str(today), "total_rows": len(rows), "rows": rows}
+
+
+DEMO_MARKER_CODE = "DEMO_SEED"
+
+
+def has_seed_test_data():
+    return Organization.objects.filter(code=DEMO_MARKER_CODE).exists()
+
+
+@transaction.atomic
+def create_seed_test_data():
+    if has_seed_test_data():
+        return {"created": False, "message": "测试数据已经创建过，不能重复创建"}
+
+    beijing = City.objects.create(name="演示北京", code="BJ-DEMO", region="华北", remark="测试数据")
+    shanghai = City.objects.create(name="演示上海", code="SH-DEMO", region="华东", remark="测试数据")
+
+    marker_org = Organization.objects.create(name="测试数据标记", code=DEMO_MARKER_CODE, remark="用于防止重复创建测试数据")
+    ops_org = Organization.objects.create(name="运维部", code="OPS-DEMO", parent=marker_org, remark="测试数据")
+    rd_org = Organization.objects.create(name="研发部", code="RD-DEMO", parent=marker_org, remark="测试数据")
+
+    zhangsan = Employee.objects.create(name="张三", job_no="DEMO-E001", phone="13800000001", email="zhangsan@example.com", organization=ops_org)
+    lisi = Employee.objects.create(name="李四", job_no="DEMO-E002", phone="13800000002", email="lisi@example.com", organization=rd_org)
+
+    bj_room = ComputerRoom.objects.create(
+        name="演示北京一号机房",
+        code="BJ-IDC-01-DEMO",
+        city=beijing,
+        address="北京市海淀区测试路 1 号",
+        manager=zhangsan,
+        status="enabled",
+        remark="测试数据",
+    )
+    sh_room = ComputerRoom.objects.create(
+        name="演示上海一号机房",
+        code="SH-IDC-01-DEMO",
+        city=shanghai,
+        address="上海市浦东新区测试路 1 号",
+        manager=lisi,
+        status="enabled",
+        remark="测试数据",
+    )
+
+    Host.objects.create(
+        hostname="demo-web-01",
+        ip_address="127.0.0.2",
+        manage_ip="127.0.0.2",
+        computer_room=bj_room,
+        organization=ops_org,
+        owner=zhangsan,
+        host_type="virtual",
+        environment="test",
+        os_type="Linux",
+        cpu_core=2,
+        memory_gb=4,
+        disk_gb=100,
+        status="running",
+        remark="测试数据：本机回环地址，通常可 ping 通",
+    )
+    Host.objects.create(
+        hostname="demo-db-01",
+        ip_address="192.0.2.10",
+        manage_ip="192.0.2.11",
+        computer_room=sh_room,
+        organization=rd_org,
+        owner=lisi,
+        host_type="physical",
+        environment="prod",
+        os_type="Linux",
+        cpu_core=8,
+        memory_gb=32,
+        disk_gb=500,
+        status="running",
+        remark="测试数据：文档保留网段，通常不可 ping 通",
+    )
+    Host.objects.create(
+        hostname="demo-cache-01",
+        ip_address="192.0.2.20",
+        manage_ip="192.0.2.21",
+        computer_room=bj_room,
+        organization=ops_org,
+        owner=zhangsan,
+        host_type="cloud",
+        environment="dev",
+        os_type="Ubuntu",
+        cpu_core=4,
+        memory_gb=8,
+        disk_gb=200,
+        status="maintenance",
+        remark="测试数据",
+    )
+
+    statistic_result = generate_daily_statistics()
+    return {
+        "created": True,
+        "message": "测试数据创建成功",
+        "counts": {
+            "cities": 2,
+            "organizations": 3,
+            "employees": 2,
+            "computer_rooms": 2,
+            "hosts": 3,
+            "daily_statistics": statistic_result["total_rows"],
+        },
+    }

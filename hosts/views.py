@@ -1,5 +1,5 @@
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
 from .models import City, ComputerRoom, Employee, Host, HostConnectivityLog, HostDailyStatistic, Organization
@@ -12,7 +12,7 @@ from .serializers import (
     HostSerializer,
     OrganizationSerializer,
 )
-from .services import generate_daily_statistics, ping_all_hosts_and_log, ping_host_and_log
+from .services import create_seed_test_data, generate_daily_statistics, has_seed_test_data, ping_all_hosts_and_log, ping_host_and_log
 
 
 class BaseModelViewSet(viewsets.ModelViewSet):
@@ -159,3 +159,10 @@ class HostDailyStatisticViewSet(viewsets.ReadOnlyModelViewSet):
     def generate(self, request):
         result = generate_daily_statistics()
         return Response(result)
+
+
+@api_view(["GET", "POST"])
+def seed_test_data(request):
+    if request.method == "GET":
+        return Response({"seeded": has_seed_test_data()})
+    return Response(create_seed_test_data())

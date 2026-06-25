@@ -9,6 +9,7 @@ from .views import (
     HostDailyStatisticViewSet,
     HostViewSet,
     OrganizationViewSet,
+    seed_test_data,
 )
 
 router = DefaultRouter()
@@ -21,5 +22,6 @@ router.register(r"connectivity-logs", HostConnectivityLogViewSet, basename="conn
 router.register(r"daily-statistics", HostDailyStatisticViewSet, basename="daily-statistic")
 
 urlpatterns = [
+    path("seed-test-data/", seed_test_data, name="seed-test-data"),
     path("", include(router.urls)),
 ]

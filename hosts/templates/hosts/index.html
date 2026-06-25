@@ -331,6 +331,7 @@
         </div>
         <div class="row-actions">
           <button class="btn-ghost" type="button" id="refreshBtn">刷新</button>
+          <button class="btn-ghost" type="button" id="seedDataBtn">添加测试数据</button>
           <button class="btn-ok" type="button" id="runScheduledBtn">执行定时探测</button>
           <button class="btn-primary" type="button" id="runStatisticBtn">执行统计任务</button>
           <button class="btn-primary" type="button" id="createBtn">新增</button>
@@ -435,6 +436,30 @@
 
   <div class="toast" id="toast"><strong></strong><span></span></div>
 
+  <div class="modal-backdrop" id="seedBackdrop">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <h3>是否构建测试数据？</h3>
+          <p>当前项目可一键创建城市、组织、员工、机房、主机和每日统计演示数据。测试数据只能创建一次。</p>
+        </div>
+        <button class="close" type="button" id="closeSeedBtn" aria-label="关闭">×</button>
+      </div>
+      <div class="result-grid">
+        <div class="result-card"><span>城市</span><strong>2</strong></div>
+        <div class="result-card"><span>机房</span><strong>2</strong></div>
+        <div class="result-card"><span>主机</span><strong>3</strong></div>
+      </div>
+      <div class="modal-foot">
+        <span>创建后可直接测试查询、录入、统计和连通性日志功能</span>
+        <div>
+          <button class="btn-ghost" type="button" id="skipSeedBtn">暂不创建</button>
+          <button class="btn-primary" type="button" id="confirmSeedBtn">创建测试数据</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const endpoints = {
       cities: "/api/cities/",
@@ -443,7 +468,8 @@
       rooms: "/api/computer-rooms/",
       hosts: "/api/hosts/",
       logs: "/api/connectivity-logs/",
-      statistics: "/api/daily-statistics/"
+      statistics: "/api/daily-statistics/",
+      seed: "/api/seed-test-data/"
     };
 
     const statusLabels = {
@@ -544,13 +570,14 @@
       }
     };
 
-    const state = { current: "hosts", editing: null, cache: {}, filtered: [], busyPing: null };
+    const state = { current: "hosts", editing: null, cache: {}, filtered: [], busyPing: null, seeded: false };
     const nav = document.getElementById("nav");
     const thead = document.getElementById("thead");
     const tbody = document.getElementById("tbody");
     const form = document.getElementById("entryForm");
     const modal = document.getElementById("modalBackdrop");
     const resultModal = document.getElementById("resultBackdrop");
+    const seedModal = document.getElementById("seedBackdrop");
     const toast = document.getElementById("toast");
     const filterIds = ["keyword", "statusFilter", "cityFilter", "roomFilter", "reachableFilter"];
 
@@ -608,6 +635,32 @@
         throw new Error(message || response.statusText);
       }
       return response.status === 204 ? null : response.json();
+    }
+
+    async function loadSeedStatus() {
+      const result = await api(endpoints.seed);
+      state.seeded = result.seeded;
+      renderSeedButton();
+      return result.seeded;
+    }
+
+    function renderSeedButton() {
+      const button = document.getElementById("seedDataBtn");
+      if (state.seeded) {
+        button.disabled = true;
+        button.textContent = "测试数据已添加";
+      } else {
+        button.disabled = false;
+        button.textContent = "添加测试数据";
+      }
+    }
+
+    function openSeedPrompt() {
+      if (!state.seeded) seedModal.classList.add("show");
+    }
+
+    function closeSeedPrompt() {
+      seedModal.classList.remove("show");
     }
 
     async function loadAll() {
@@ -774,6 +827,7 @@
       document.getElementById("pingAllBtn").style.display = state.current === "hosts" ? "" : "none";
       document.getElementById("runScheduledBtn").style.display = state.current === "logs" ? "" : "none";
       document.getElementById("runStatisticBtn").style.display = state.current === "statistics" ? "" : "none";
+      renderSeedButton();
     }
 
     function lookupText(item) {
@@ -958,8 +1012,39 @@
 
     async function refresh() {
       await loadAll();
+      await loadSeedStatus();
       renderPage();
       showToast("已刷新", "数据已更新");
+    }
+
+    async function createSeedData() {
+      const buttons = [document.getElementById("seedDataBtn"), document.getElementById("confirmSeedBtn")];
+      buttons.forEach(button => setButtonLoading(button, "创建中"));
+      try {
+        const result = await api(endpoints.seed, { method: "POST", body: "{}" });
+        state.seeded = true;
+        closeSeedPrompt();
+        await loadAll();
+        renderPage();
+        if (result.created) {
+          const counts = result.counts || {};
+          showResultModal(
+            "测试数据创建成功",
+            "已创建演示数据，可直接体验页面功能",
+            (counts.cities || 0) + (counts.computer_rooms || 0) + (counts.hosts || 0),
+            counts.hosts || 0,
+            0,
+            `城市 ${counts.cities || 0}，机房 ${counts.computer_rooms || 0}，主机 ${counts.hosts || 0}，统计 ${counts.daily_statistics || 0}`
+          );
+        } else {
+          showToast("无需重复创建", result.message || "测试数据已经创建过");
+        }
+      } catch (error) {
+        showToast("测试数据创建失败", error.message);
+      } finally {
+        buttons.forEach(clearButtonLoading);
+        renderSeedButton();
+      }
     }
 
     nav.addEventListener("click", event => {
@@ -992,6 +1077,10 @@
       renderTable();
     };
     document.getElementById("createBtn").onclick = () => openModal();
+    document.getElementById("seedDataBtn").onclick = createSeedData;
+    document.getElementById("confirmSeedBtn").onclick = createSeedData;
+    document.getElementById("skipSeedBtn").onclick = closeSeedPrompt;
+    document.getElementById("closeSeedBtn").onclick = closeSeedPrompt;
     document.getElementById("pingAllBtn").onclick = pingAllHosts;
     document.getElementById("runScheduledBtn").onclick = runScheduledConnectivity;
     document.getElementById("runStatisticBtn").onclick = runStatisticTask;
@@ -1003,14 +1092,18 @@
     document.getElementById("resultOkBtn").onclick = closeResultModal;
     modal.addEventListener("click", event => { if (event.target === modal) closeModal(); });
     resultModal.addEventListener("click", event => { if (event.target === resultModal) closeResultModal(); });
+    seedModal.addEventListener("click", event => { if (event.target === seedModal) closeSeedPrompt(); });
     window.addEventListener("keydown", event => { if (event.key === "Escape" && modal.classList.contains("show")) closeModal(); });
     window.addEventListener("keydown", event => { if (event.key === "Escape" && resultModal.classList.contains("show")) closeResultModal(); });
+    window.addEventListener("keydown", event => { if (event.key === "Escape" && seedModal.classList.contains("show")) closeSeedPrompt(); });
 
     (async function init() {
       renderNav();
       try {
+        await loadSeedStatus();
         await loadAll();
         renderPage();
+        if (!state.seeded) openSeedPrompt();
       } catch (error) {
         showToast("页面加载失败", error.message);
       }
