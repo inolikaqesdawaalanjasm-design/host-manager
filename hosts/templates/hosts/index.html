@@ -1,0 +1,1020 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>主机管理系统</title>
+  <style>
+    :root {
+      --page: #f4f6fa;
+      --nav: #111827;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --line: #d9e1ec;
+      --text: #172033;
+      --sub: #64748b;
+      --primary: #155eef;
+      --primary-soft: #eaf1ff;
+      --danger: #c02626;
+      --danger-soft: #fff1f2;
+      --ok: #157f3b;
+      --ok-soft: #ecfdf3;
+      --warn: #9a5b00;
+      --warn-soft: #fff7d6;
+      --shadow: 0 18px 48px rgba(15, 23, 42, .14);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button {
+      min-height: 34px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 7px 12px;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+    }
+    button:disabled { opacity: .65; cursor: wait; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: white;
+      color: var(--text);
+      outline-color: var(--primary);
+    }
+    textarea { min-height: 78px; resize: vertical; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 220px minmax(0, 1fr); }
+    .sidebar {
+      background: var(--nav);
+      color: white;
+      padding: 18px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .brand { padding: 2px 10px 15px; border-bottom: 1px solid rgba(255,255,255,.12); }
+    .brand h1 { margin: 0; font-size: 19px; }
+    .brand p { margin: 4px 0 0; color: #aeb8c8; font-size: 12px; }
+    .nav { display: grid; gap: 5px; }
+    .nav button {
+      width: 100%;
+      border: 0;
+      text-align: left;
+      background: transparent;
+      color: #d7deea;
+      padding: 10px 11px;
+    }
+    .nav button.active { background: #253147; color: white; }
+    .content { min-width: 0; padding: 20px 24px 30px; }
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 150px 170px 170px 150px auto;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 14px;
+    }
+    .toolbar label { display: grid; gap: 5px; color: var(--sub); font-size: 12px; font-weight: 650; }
+    .toolbar .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .topline {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    .topline h2 { margin: 0; font-size: 24px; }
+    .topline p { margin: 4px 0 0; color: var(--sub); }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-ghost { border-color: var(--line); }
+    .btn-danger { background: var(--danger-soft); color: var(--danger); border-color: #fecaca; }
+    .btn-ok { background: var(--ok-soft); color: var(--ok); border-color: #bbf7d0; }
+    .btn-loading {
+      position: relative;
+      padding-left: 34px;
+    }
+    .btn-loading::before {
+      content: "";
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      width: 13px;
+      height: 13px;
+      margin-top: -7px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 999px;
+      animation: spin .75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .metric {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .metric span { display: block; color: var(--sub); font-size: 12px; }
+    .metric strong { display: block; margin-top: 4px; font-size: 22px; line-height: 1.15; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 15px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+    }
+    .panel-head h3 { margin: 0; font-size: 16px; }
+    .panel-head small { color: var(--sub); }
+    .panel-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .table-wrap { overflow: auto; }
+    table { width: 100%; min-width: 1040px; border-collapse: collapse; }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: var(--panel-soft);
+      color: #475569;
+      font-size: 12px;
+      font-weight: 750;
+      z-index: 1;
+    }
+    tr:hover td { background: #fbfdff; }
+    .row-main { font-weight: 700; }
+    .row-sub { margin-top: 2px; color: var(--sub); font-size: 12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 23px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      background: #e2e8f0;
+    }
+    .badge.ok { color: var(--ok); background: var(--ok-soft); }
+    .badge.bad { color: var(--danger); background: var(--danger-soft); }
+    .badge.warn { color: var(--warn); background: var(--warn-soft); }
+    .empty { padding: 38px 14px; text-align: center; color: var(--sub); }
+    .toast {
+      position: fixed;
+      right: 22px;
+      top: 18px;
+      z-index: 40;
+      width: min(420px, calc(100vw - 44px));
+      display: none;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+    }
+    .toast.show { display: block; }
+    .toast strong { display: block; }
+    .toast span { color: var(--sub); }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+      background: rgba(15, 23, 42, .48);
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal {
+      width: min(820px, 100%);
+      max-height: min(86vh, 820px);
+      background: white;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-head {
+      padding: 15px 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .modal-head h3 { margin: 0; font-size: 18px; }
+    .modal-head p { margin: 2px 0 0; color: var(--sub); font-size: 12px; }
+    .close {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      border-color: var(--line);
+      font-size: 22px;
+      line-height: 1;
+    }
+    .form-grid {
+      padding: 16px 18px 18px;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 13px 14px;
+    }
+    .form-grid label {
+      display: grid;
+      gap: 6px;
+      color: #334155;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .form-grid label.full { grid-column: 1 / -1; }
+    .modal-foot {
+      border-top: 1px solid var(--line);
+      padding: 13px 18px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      background: #fbfcfe;
+    }
+    .modal-foot span { color: var(--sub); font-size: 12px; }
+    .modal-foot div { display: flex; gap: 8px; }
+    .required-mark { color: var(--danger); margin-left: 2px; }
+    .field-help { color: var(--sub); font-size: 12px; font-weight: 500; }
+    .form-alert {
+      grid-column: 1 / -1;
+      display: none;
+      border: 1px solid #fecaca;
+      background: #fff1f2;
+      color: var(--danger);
+      border-radius: 6px;
+      padding: 9px 10px;
+      font-weight: 650;
+    }
+    .form-alert.show { display: block; }
+    .field-error {
+      border-color: var(--danger);
+      background: #fffafa;
+    }
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      padding: 16px 18px 4px;
+    }
+    .result-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfcfe;
+    }
+    .result-card span { color: var(--sub); font-size: 12px; }
+    .result-card strong { display: block; margin-top: 4px; font-size: 24px; }
+    .result-card.ok strong { color: var(--ok); }
+    .result-card.bad strong { color: var(--danger); }
+    @media (max-width: 1100px) {
+      .toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .toolbar .actions { justify-content: flex-start; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 780px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position: static; }
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .content { padding: 16px; }
+      .topline { flex-direction: column; }
+      .toolbar { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>主机管理系统</h1>
+        <p>资产台账与连通性探测</p>
+      </div>
+      <nav class="nav" id="nav"></nav>
+    </aside>
+
+    <main class="content">
+      <div class="topline">
+        <div>
+          <h2 id="pageTitle">主机</h2>
+          <p id="pageHint">主机信息查询、录入和 ping 探测</p>
+        </div>
+        <div class="row-actions">
+          <button class="btn-ghost" type="button" id="refreshBtn">刷新</button>
+          <button class="btn-ok" type="button" id="runScheduledBtn">执行定时探测</button>
+          <button class="btn-primary" type="button" id="runStatisticBtn">执行统计任务</button>
+          <button class="btn-primary" type="button" id="createBtn">新增</button>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric"><span>城市数量</span><strong id="cityCount">0</strong></div>
+        <div class="metric"><span>机房数量</span><strong id="roomCount">0</strong></div>
+        <div class="metric"><span>主机数量</span><strong id="hostCount">0</strong></div>
+        <div class="metric"><span>可达主机</span><strong id="reachableCount">0</strong></div>
+      </div>
+
+      <div class="toolbar">
+        <label>关键词
+          <input id="keyword" type="search" placeholder="主机名 / IP / 城市 / 机房 / 组织 / 负责人">
+        </label>
+        <label>状态
+          <select id="statusFilter"></select>
+        </label>
+        <label>城市
+          <select id="cityFilter"></select>
+        </label>
+        <label>机房
+          <select id="roomFilter"></select>
+        </label>
+        <label>连通性
+          <select id="reachableFilter">
+            <option value="">全部</option>
+            <option value="true">可达</option>
+            <option value="false">不可达</option>
+            <option value="unknown">未探测</option>
+          </select>
+        </label>
+        <div class="actions">
+          <button class="btn-ghost" type="button" id="clearFiltersBtn">清空</button>
+        </div>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h3 id="tableTitle">主机列表</h3>
+            <small id="tableSub">0 条记录</small>
+          </div>
+          <div class="panel-tools">
+            <button class="btn-ok" type="button" id="pingAllBtn">测试全部主机</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead id="thead"></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <h3 id="modalTitle">新增</h3>
+          <p id="modalSub">保存后立即刷新列表</p>
+        </div>
+        <button class="close" type="button" id="closeModalBtn" aria-label="关闭">×</button>
+      </div>
+      <form class="form-grid" id="entryForm">
+        <div class="form-alert" id="formAlert"></div>
+      </form>
+      <div class="modal-foot">
+        <span id="formNote">带 * 的字段为必填</span>
+        <div>
+          <button class="btn-ghost" type="button" id="cancelBtn">取消</button>
+          <button class="btn-primary" type="button" id="saveBtn">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="resultBackdrop">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <h3 id="resultTitle">任务执行完成</h3>
+          <p id="resultSub">执行结果</p>
+        </div>
+        <button class="close" type="button" id="closeResultBtn" aria-label="关闭">×</button>
+      </div>
+      <div class="result-grid">
+        <div class="result-card"><span>总数</span><strong id="resultTotal">0</strong></div>
+        <div class="result-card ok"><span>成功 / 可达</span><strong id="resultOk">0</strong></div>
+        <div class="result-card bad"><span>失败 / 不可达</span><strong id="resultBad">0</strong></div>
+      </div>
+      <div class="modal-foot">
+        <span id="resultNote">结果已写入数据库</span>
+        <div><button class="btn-primary" type="button" id="resultOkBtn">知道了</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><strong></strong><span></span></div>
+
+  <script>
+    const endpoints = {
+      cities: "/api/cities/",
+      organizations: "/api/organizations/",
+      employees: "/api/employees/",
+      rooms: "/api/computer-rooms/",
+      hosts: "/api/hosts/",
+      logs: "/api/connectivity-logs/",
+      statistics: "/api/daily-statistics/"
+    };
+
+    const statusLabels = {
+      running: "运行中",
+      stopped: "已停止",
+      maintenance: "维护中",
+      offline: "已下线",
+      enabled: "启用",
+      disabled: "停用"
+    };
+
+    const checkTypeLabels = {
+      manual: "手动探测",
+      batch: "批量探测",
+      scheduled: "定时探测"
+    };
+
+    const resources = {
+      hosts: {
+        title: "主机",
+        hint: "主机信息查询、录入和 ping 探测",
+        endpoint: endpoints.hosts,
+        columns: [
+          ["hostIdentity", "主机"], ["location", "位置"], ["ownership", "归属"],
+          ["spec", "规格"], ["status", "状态"], ["connectivity", "连通性"]
+        ],
+        fields: [
+          ["hostname", "主机名", "text", true], ["ip_address", "主机 IP", "text", true],
+          ["manage_ip", "管理 IP", "text"], ["computer_room", "所属机房", "rooms", true],
+          ["organization", "所属组织", "organizations", true], ["owner", "负责人", "employees"],
+          ["host_type", "主机类型", [["physical", "物理机"], ["virtual", "虚拟机"], ["cloud", "云主机"]]],
+          ["environment", "运行环境", [["dev", "开发"], ["test", "测试"], ["prod", "生产"]]],
+          ["os_type", "操作系统", "text"], ["cpu_core", "CPU 核心数", "number"],
+          ["memory_gb", "内存 GB", "number"], ["disk_gb", "磁盘 GB", "number"],
+          ["status", "主机状态", [["running", "运行中"], ["stopped", "已停止"], ["maintenance", "维护中"], ["offline", "已下线"]]],
+          ["remark", "备注", "textarea"]
+        ]
+      },
+      cities: {
+        title: "城市",
+        hint: "城市信息查询与录入",
+        endpoint: endpoints.cities,
+        columns: [["name", "城市名称"], ["code", "编码"], ["region", "区域"], ["created_at", "创建时间"]],
+        fields: [["name", "城市名称", "text", true], ["code", "城市编码", "text", true], ["region", "所属地区", "text"], ["remark", "备注", "textarea"]]
+      },
+      rooms: {
+        title: "机房",
+        hint: "机房信息查询与录入",
+        endpoint: endpoints.rooms,
+        columns: [["name", "机房名称"], ["code", "编码"], ["city_name", "城市"], ["manager_name", "负责人"], ["status", "状态"]],
+        fields: [
+          ["name", "机房名称", "text", true], ["code", "机房编码", "text", true],
+          ["city", "所属城市", "cities", true], ["manager", "机房负责人", "employees"],
+          ["address", "地址", "text"], ["status", "状态", [["enabled", "启用"], ["disabled", "停用"], ["maintenance", "维护中"]]],
+          ["remark", "备注", "textarea"]
+        ]
+      },
+      organizations: {
+        title: "组织",
+        hint: "组织信息查询与录入",
+        endpoint: endpoints.organizations,
+        columns: [["name", "组织名称"], ["code", "编码"], ["parent_name", "上级组织"], ["created_at", "创建时间"]],
+        fields: [["name", "组织名称", "text", true], ["code", "组织编码", "text", true], ["parent", "上级组织", "organizations"], ["remark", "备注", "textarea"]]
+      },
+      employees: {
+        title: "员工",
+        hint: "员工信息查询与录入",
+        endpoint: endpoints.employees,
+        columns: [["name", "姓名"], ["job_no", "工号"], ["organization_name", "组织"], ["phone", "手机号"], ["email", "邮箱"]],
+        fields: [
+          ["name", "姓名", "text", true], ["job_no", "工号", "text", true],
+          ["organization", "所属组织", "organizations", true], ["phone", "手机号", "text"],
+          ["email", "邮箱", "email"], ["remark", "备注", "textarea"]
+        ]
+      },
+      logs: {
+        title: "连通性日志",
+        hint: "查看单台、批量和定时任务产生的连通性探测记录",
+        endpoint: endpoints.logs,
+        readonly: true,
+        columns: [
+          ["logHost", "主机"], ["logLocation", "位置"], ["reachable", "结果"],
+          ["check_type", "类型"], ["duration_ms", "耗时"], ["check_time", "探测时间"],
+          ["command", "命令"]
+        ],
+        fields: []
+      },
+      statistics: {
+        title: "每日统计",
+        hint: "查看每天 00:00 按城市和机房维度写入数据库的主机数量统计",
+        endpoint: endpoints.statistics,
+        readonly: true,
+        columns: [
+          ["statistic_date", "统计日期"], ["city_name", "城市"], ["computer_room_name", "机房"],
+          ["host_count", "主机数量"], ["created_at", "写入时间"], ["updated_at", "更新时间"]
+        ],
+        fields: []
+      }
+    };
+
+    const state = { current: "hosts", editing: null, cache: {}, filtered: [], busyPing: null };
+    const nav = document.getElementById("nav");
+    const thead = document.getElementById("thead");
+    const tbody = document.getElementById("tbody");
+    const form = document.getElementById("entryForm");
+    const modal = document.getElementById("modalBackdrop");
+    const resultModal = document.getElementById("resultBackdrop");
+    const toast = document.getElementById("toast");
+    const filterIds = ["keyword", "statusFilter", "cityFilter", "roomFilter", "reachableFilter"];
+
+    function esc(value) {
+      if (value === null || value === undefined || value === "") return "-";
+      return String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    function showToast(title, detail = "") {
+      toast.querySelector("strong").textContent = title;
+      toast.querySelector("span").textContent = detail;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2800);
+    }
+
+    function showResultModal(title, detail, total, ok, bad, note = "结果已写入数据库") {
+      document.getElementById("resultTitle").textContent = title;
+      document.getElementById("resultSub").textContent = detail;
+      document.getElementById("resultTotal").textContent = total;
+      document.getElementById("resultOk").textContent = ok;
+      document.getElementById("resultBad").textContent = bad;
+      document.getElementById("resultNote").textContent = note;
+      resultModal.classList.add("show");
+    }
+
+    function closeResultModal() {
+      resultModal.classList.remove("show");
+    }
+
+    function setButtonLoading(button, loadingText) {
+      button.dataset.originalText = button.dataset.originalText || button.textContent;
+      button.disabled = true;
+      button.textContent = loadingText;
+      button.classList.add("btn-loading");
+    }
+
+    function clearButtonLoading(button) {
+      button.disabled = false;
+      button.textContent = button.dataset.originalText || button.textContent;
+      button.classList.remove("btn-loading");
+    }
+
+    async function api(url, options = {}) {
+      const response = await fetch(url, {
+        ...options,
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+      });
+      if (!response.ok) {
+        let message = await response.text();
+        try {
+          const data = JSON.parse(message);
+          message = data.message || Object.values(data).flat().join("; ");
+        } catch (_) {}
+        throw new Error(message || response.statusText);
+      }
+      return response.status === 204 ? null : response.json();
+    }
+
+    async function loadAll() {
+      await Promise.all(Object.entries(resources).map(async ([key, config]) => {
+        state.cache[key] = await api(config.endpoint);
+      }));
+      applyFilters();
+    }
+
+    function renderNav() {
+      nav.innerHTML = Object.entries(resources).map(([key, config]) => (
+        `<button class="${state.current === key ? "active" : ""}" data-key="${key}" type="button">${config.title}</button>`
+      )).join("");
+    }
+
+    function renderMetrics() {
+      const hosts = state.cache.hosts || [];
+      document.getElementById("cityCount").textContent = (state.cache.cities || []).length;
+      document.getElementById("roomCount").textContent = (state.cache.rooms || []).length;
+      document.getElementById("hostCount").textContent = hosts.length;
+      document.getElementById("reachableCount").textContent = hosts.filter(item => item.last_check_result === true).length;
+    }
+
+    function renderFilters() {
+      const statusFilter = document.getElementById("statusFilter");
+      const cityFilter = document.getElementById("cityFilter");
+      const roomFilter = document.getElementById("roomFilter");
+      const current = state.current;
+      const statusOptions = current === "hosts"
+        ? [["", "全部"], ["running", "运行中"], ["stopped", "已停止"], ["maintenance", "维护中"], ["offline", "已下线"]]
+        : current === "rooms"
+          ? [["", "全部"], ["enabled", "启用"], ["disabled", "停用"], ["maintenance", "维护中"]]
+          : [["", "全部"]];
+
+      statusFilter.innerHTML = statusOptions.map(([value, text]) => `<option value="${value}">${text}</option>`).join("");
+      cityFilter.innerHTML = `<option value="">全部</option>${(state.cache.cities || []).map(item => `<option value="${item.id}">${esc(item.name)}</option>`).join("")}`;
+      roomFilter.innerHTML = `<option value="">全部</option>${(state.cache.rooms || []).map(item => `<option value="${item.id}">${esc(item.name)}</option>`).join("")}`;
+
+      const hostOnly = current === "hosts";
+      const logOnly = current === "logs";
+      document.getElementById("reachableFilter").disabled = !(hostOnly || logOnly);
+      roomFilter.disabled = !(hostOnly || logOnly);
+      cityFilter.disabled = !(hostOnly || current === "rooms" || logOnly);
+      statusFilter.disabled = !(hostOnly || current === "rooms");
+    }
+
+    function rowSearchText(row) {
+      return Object.values(row).join(" ").toLowerCase();
+    }
+
+    function applyFilters() {
+      const list = state.cache[state.current] || [];
+      const keyword = document.getElementById("keyword")?.value.trim().toLowerCase() || "";
+      const status = document.getElementById("statusFilter")?.value || "";
+      const city = document.getElementById("cityFilter")?.value || "";
+      const room = document.getElementById("roomFilter")?.value || "";
+      const reachable = document.getElementById("reachableFilter")?.value || "";
+
+      state.filtered = list.filter(row => {
+        if (keyword && !rowSearchText(row).includes(keyword)) return false;
+        if (status && row.status !== status) return false;
+        if (state.current === "hosts") {
+          if (city && String(row.computer_room ? (state.cache.rooms || []).find(r => r.id === row.computer_room)?.city : "") !== city) return false;
+          if (room && String(row.computer_room) !== room) return false;
+          if (reachable === "true" && row.last_check_result !== true) return false;
+          if (reachable === "false" && row.last_check_result !== false) return false;
+          if (reachable === "unknown" && row.last_check_result !== null) return false;
+        }
+        if (state.current === "logs") {
+          const host = (state.cache.hosts || []).find(item => item.id === row.host);
+          const roomItem = host ? (state.cache.rooms || []).find(item => item.id === host.computer_room) : null;
+          if (city && String(roomItem?.city || "") !== city) return false;
+          if (room && String(host?.computer_room || "") !== room) return false;
+          if (reachable === "true" && row.reachable !== true) return false;
+          if (reachable === "false" && row.reachable !== false) return false;
+          if (reachable === "unknown") return false;
+        }
+        if (state.current === "rooms" && city && String(row.city) !== city) return false;
+        return true;
+      });
+    }
+
+    function statusBadge(value) {
+      return `<span class="badge">${esc(statusLabels[value] || value)}</span>`;
+    }
+
+    function connectivityBadge(value) {
+      if (value === true) return '<span class="badge ok">可达</span>';
+      if (value === false) return '<span class="badge bad">不可达</span>';
+      return '<span class="badge warn">未探测</span>';
+    }
+
+    function specText(row) {
+      const parts = [];
+      if (row.cpu_core !== null && row.cpu_core !== undefined) parts.push(`${row.cpu_core}C`);
+      if (row.memory_gb !== null && row.memory_gb !== undefined) parts.push(`${row.memory_gb}G`);
+      if (row.disk_gb !== null && row.disk_gb !== undefined) parts.push(`${row.disk_gb}G`);
+      return parts.join(" / ") || "-";
+    }
+
+    function cell(row, key) {
+      if (key === "logHost") {
+        return `<div class="row-main">${esc(row.hostname)}</div><div class="row-sub mono">${esc(row.ip_address || row.target_ip)}</div>`;
+      }
+      if (key === "logLocation") {
+        return `<div>${esc(row.city_name)}</div><div class="row-sub">${esc(row.computer_room_name)}</div>`;
+      }
+      if (key === "hostIdentity") {
+        return `<div class="row-main">${esc(row.hostname)}</div><div class="row-sub mono">${esc(row.ip_address)} / ${esc(row.manage_ip)}</div>`;
+      }
+      if (key === "location") {
+        return `<div>${esc(row.city_name)}</div><div class="row-sub">${esc(row.computer_room_name)}</div>`;
+      }
+      if (key === "ownership") {
+        return `<div>${esc(row.organization_name)}</div><div class="row-sub">${esc(row.owner_name)}</div>`;
+      }
+      if (key === "spec") {
+        return `<div>${esc(specText(row))}</div><div class="row-sub">${esc(row.os_type)} / ${esc(row.environment)}</div>`;
+      }
+      if (key === "connectivity") return connectivityBadge(row.last_check_result);
+      if (key === "reachable") return connectivityBadge(row.reachable);
+      if (key === "status") return statusBadge(row.status);
+      if (key === "check_type") return `<span class="badge">${esc(checkTypeLabels[row.check_type] || row.check_type)}</span>`;
+      if (key === "duration_ms") return `${esc(row.duration_ms)} ms`;
+      if (key === "command") return `<div class="mono">${esc(row.command)}</div><div class="row-sub">${esc((row.output || "").slice(0, 80))}</div>`;
+      if (key === "check_time") return esc(String(row.check_time || "").replace("T", " ").slice(0, 19));
+      if (key === "created_at") return esc(String(row.created_at || "").replace("T", " ").slice(0, 19));
+      return esc(row[key]);
+    }
+
+    function renderTable() {
+      const config = resources[state.current];
+      document.getElementById("pageTitle").textContent = config.title;
+      document.getElementById("pageHint").textContent = config.hint;
+      document.getElementById("tableTitle").textContent = `${config.title}列表`;
+      document.getElementById("tableSub").textContent = `${state.filtered.length} 条记录`;
+      const actionHead = config.readonly ? "" : "<th>操作</th>";
+      thead.innerHTML = `<tr>${config.columns.map(([, label]) => `<th>${label}</th>`).join("")}${actionHead}</tr>`;
+      if (!state.filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="${config.columns.length + (config.readonly ? 0 : 1)}"><div class="empty">暂无匹配数据</div></td></tr>`;
+        return;
+      }
+      tbody.innerHTML = state.filtered.map(row => `
+        <tr>
+          ${config.columns.map(([key]) => `<td>${cell(row, key)}</td>`).join("")}
+          ${config.readonly ? "" : `<td>
+            <div class="row-actions">
+              <button class="btn-ghost" type="button" data-action="edit" data-id="${row.id}">编辑</button>
+              ${state.current === "hosts" ? `<button class="btn-ok ${state.busyPing === row.id ? "btn-loading" : ""}" type="button" data-action="ping" data-id="${row.id}" ${state.busyPing === row.id ? "disabled" : ""}>${state.busyPing === row.id ? "探测中" : "Ping"}</button>` : ""}
+              <button class="btn-danger" type="button" data-action="delete" data-id="${row.id}">删除</button>
+            </div>
+          </td>`}
+        </tr>
+      `).join("");
+    }
+
+    function renderPage() {
+      renderNav();
+      renderMetrics();
+      renderFilters();
+      applyFilters();
+      renderTable();
+      document.getElementById("createBtn").style.display = resources[state.current].readonly ? "none" : "";
+      document.getElementById("pingAllBtn").style.display = state.current === "hosts" ? "" : "none";
+      document.getElementById("runScheduledBtn").style.display = state.current === "logs" ? "" : "none";
+      document.getElementById("runStatisticBtn").style.display = state.current === "statistics" ? "" : "none";
+    }
+
+    function lookupText(item) {
+      return item.name || item.hostname || item.job_no || item.code || item.id;
+    }
+
+    function fieldHtml([name, label, type, required]) {
+      const requiredMark = required ? '<span class="required-mark">*</span>' : "";
+      const requiredAttr = required ? "required" : "";
+      const requiredHelp = required ? '<span class="field-help">必填</span>' : "";
+      if (Array.isArray(type)) {
+        return `<label>${label}${requiredMark}<select name="${name}" ${requiredAttr}>${type.map(([value, text]) => `<option value="${value}">${text}</option>`).join("")}</select>${requiredHelp}</label>`;
+      }
+      if (resources[type]) {
+        const options = (state.cache[type] || []).map(item => `<option value="${item.id}">${esc(lookupText(item))}</option>`).join("");
+        return `<label>${label}${requiredMark}<select name="${name}" ${requiredAttr}><option value="">请选择</option>${options}</select>${requiredHelp}</label>`;
+      }
+      if (type === "textarea") return `<label class="full">${label}<textarea name="${name}"></textarea></label>`;
+      return `<label>${label}${requiredMark}<input name="${name}" type="${type || "text"}" ${requiredAttr}>${requiredHelp}</label>`;
+    }
+
+    function openModal(row = null) {
+      const config = resources[state.current];
+      if (config.readonly) return;
+      state.editing = row;
+      document.getElementById("modalTitle").textContent = row ? `编辑${config.title}` : `新增${config.title}`;
+      document.getElementById("modalSub").textContent = row ? `ID：${row.id}` : "保存后立即刷新列表";
+      form.innerHTML = `<div class="form-alert" id="formAlert"></div>${config.fields.map(fieldHtml).join("")}`;
+      if (row) {
+        for (const [name] of config.fields) {
+          const input = form.elements[name];
+          if (input && row[name] !== null && row[name] !== undefined) input.value = row[name];
+        }
+      }
+      modal.classList.add("show");
+      const first = form.querySelector("input,select,textarea");
+      if (first) first.focus();
+    }
+
+    function closeModal() {
+      state.editing = null;
+      modal.classList.remove("show");
+      form.innerHTML = "";
+    }
+
+    function payloadFromForm() {
+      const payload = {};
+      for (const [name, , type, required] of resources[state.current].fields) {
+        const input = form.elements[name];
+        if (!input) continue;
+        if (!input.value && !required) {
+          payload[name] = null;
+        } else if (type === "number") {
+          payload[name] = input.value ? Number(input.value) : 0;
+        } else if (resources[type]) {
+          payload[name] = input.value ? Number(input.value) : null;
+        } else {
+          payload[name] = input.value;
+        }
+      }
+      return payload;
+    }
+
+    function validateRequiredFields() {
+      const missing = [];
+      form.querySelectorAll(".field-error").forEach(item => item.classList.remove("field-error"));
+      for (const [name, label, , required] of resources[state.current].fields) {
+        if (!required) continue;
+        const input = form.elements[name];
+        if (!input || String(input.value || "").trim() === "") {
+          missing.push(label);
+          if (input) input.classList.add("field-error");
+        }
+      }
+      const alert = document.getElementById("formAlert");
+      if (missing.length) {
+        alert.textContent = `请先填写必填项：${missing.join("、")}`;
+        alert.classList.add("show");
+        const firstError = form.querySelector(".field-error");
+        if (firstError) firstError.focus();
+        return false;
+      }
+      alert.classList.remove("show");
+      alert.textContent = "";
+      return true;
+    }
+
+    async function saveEntry() {
+      if (!validateRequiredFields() || !form.reportValidity()) return;
+      const config = resources[state.current];
+      const id = state.editing?.id;
+      try {
+        await api(id ? `${config.endpoint}${id}/` : config.endpoint, {
+          method: id ? "PATCH" : "POST",
+          body: JSON.stringify(payloadFromForm())
+        });
+        closeModal();
+        await loadAll();
+        renderPage();
+        showToast("保存成功", `${config.title}数据已更新`);
+      } catch (error) {
+        showToast("保存失败", error.message);
+      }
+    }
+
+    async function deleteEntry(id) {
+      const config = resources[state.current];
+      if (!confirm(`确认删除这条${config.title}数据吗？`)) return;
+      try {
+        await api(`${config.endpoint}${id}/`, { method: "DELETE" });
+        await loadAll();
+        renderPage();
+        showToast("删除成功", "已执行逻辑删除");
+      } catch (error) {
+        showToast("删除失败", error.message);
+      }
+    }
+
+    async function pingHost(id) {
+      state.busyPing = id;
+      renderTable();
+      showToast("正在探测", `主机 #${id}`);
+      try {
+        const result = await api(`${resources.hosts.endpoint}${id}/ping/`, { method: "POST", body: "{}" });
+        await loadAll();
+        showToast("Ping 完成", result.reachable ? `主机可达，耗时 ${result.duration_ms} ms` : `主机不可达，耗时 ${result.duration_ms} ms`);
+      } catch (error) {
+        showToast("Ping 失败", error.message);
+      } finally {
+        state.busyPing = null;
+        renderPage();
+      }
+    }
+
+    async function pingAllHosts() {
+      const button = document.getElementById("pingAllBtn");
+      setButtonLoading(button, "测试中");
+      showToast("正在批量探测", "会逐台 ping 所有未删除主机，并写入连通性日志");
+      try {
+        const result = await api(`${resources.hosts.endpoint}ping-all/`, { method: "POST", body: "{}" });
+        await loadAll();
+        renderPage();
+        showResultModal("全部主机测试完成", "批量连通性测试结果", result.total, result.reachable, result.unreachable, "探测日志已写入连通性日志表");
+      } catch (error) {
+        showToast("批量探测失败", error.message);
+      } finally {
+        clearButtonLoading(button);
+      }
+    }
+
+    async function runScheduledConnectivity() {
+      const button = document.getElementById("runScheduledBtn");
+      setButtonLoading(button, "执行中");
+      showToast("正在执行定时探测任务", "会以 scheduled 类型写入连通性日志");
+      try {
+        const result = await api(`${resources.logs.endpoint}run-scheduled-check/`, { method: "POST", body: "{}" });
+        await loadAll();
+        renderPage();
+        showResultModal("定时探测任务完成", "模拟 Celery 定时连通性任务结果", result.total, result.reachable, result.unreachable, "探测日志已写入连通性日志表");
+      } catch (error) {
+        showToast("定时探测任务失败", error.message);
+      } finally {
+        clearButtonLoading(button);
+      }
+    }
+
+    async function runStatisticTask() {
+      const button = document.getElementById("runStatisticBtn");
+      setButtonLoading(button, "统计中");
+      showToast("正在执行统计任务", "会按城市和机房维度写入每日统计表");
+      try {
+        const result = await api(`${resources.statistics.endpoint}generate/`, { method: "POST", body: "{}" });
+        await loadAll();
+        renderPage();
+        showResultModal("统计任务完成", `统计日期：${result.statistic_date}`, result.total_rows, result.total_rows, 0, "统计结果已写入每日统计表");
+      } catch (error) {
+        showToast("统计任务失败", error.message);
+      } finally {
+        clearButtonLoading(button);
+      }
+    }
+
+    async function refresh() {
+      await loadAll();
+      renderPage();
+      showToast("已刷新", "数据已更新");
+    }
+
+    nav.addEventListener("click", event => {
+      const button = event.target.closest("button[data-key]");
+      if (!button) return;
+      state.current = button.dataset.key;
+      document.getElementById("keyword").value = "";
+      renderPage();
+    });
+
+    tbody.addEventListener("click", event => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      const id = Number(button.dataset.id);
+      const row = (state.cache[state.current] || []).find(item => item.id === id);
+      if (button.dataset.action === "edit") openModal(row);
+      if (button.dataset.action === "delete") deleteEntry(id);
+      if (button.dataset.action === "ping") pingHost(id);
+    });
+
+    for (const id of filterIds) {
+      document.getElementById(id).addEventListener("input", () => {
+        applyFilters();
+        renderTable();
+      });
+    }
+    document.getElementById("clearFiltersBtn").onclick = () => {
+      for (const id of filterIds) document.getElementById(id).value = "";
+      applyFilters();
+      renderTable();
+    };
+    document.getElementById("createBtn").onclick = () => openModal();
+    document.getElementById("pingAllBtn").onclick = pingAllHosts;
+    document.getElementById("runScheduledBtn").onclick = runScheduledConnectivity;
+    document.getElementById("runStatisticBtn").onclick = runStatisticTask;
+    document.getElementById("refreshBtn").onclick = refresh;
+    document.getElementById("saveBtn").onclick = saveEntry;
+    document.getElementById("cancelBtn").onclick = closeModal;
+    document.getElementById("closeModalBtn").onclick = closeModal;
+    document.getElementById("closeResultBtn").onclick = closeResultModal;
+    document.getElementById("resultOkBtn").onclick = closeResultModal;
+    modal.addEventListener("click", event => { if (event.target === modal) closeModal(); });
+    resultModal.addEventListener("click", event => { if (event.target === resultModal) closeResultModal(); });
+    window.addEventListener("keydown", event => { if (event.key === "Escape" && modal.classList.contains("show")) closeModal(); });
+    window.addEventListener("keydown", event => { if (event.key === "Escape" && resultModal.classList.contains("show")) closeResultModal(); });
+
+    (async function init() {
+      renderNav();
+      try {
+        await loadAll();
+        renderPage();
+      } catch (error) {
+        showToast("页面加载失败", error.message);
+      }
+    })();
+  </script>
+</body>
+</html>

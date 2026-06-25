@@ -230,3 +230,41 @@ class HostDailyStatistic(BaseModel):
 
     def __str__(self):
         return f"{self.statistic_date}-{self.city.name}-{self.computer_room.name}-{self.host_count}"
+
+
+class HostConnectivityLog(BaseModel):
+    CHECK_TYPE_CHOICES = (
+        ("manual", "手动探测"),
+        ("batch", "批量探测"),
+        ("scheduled", "定时探测"),
+    )
+
+    host = models.ForeignKey(
+        Host,
+        on_delete=models.PROTECT,
+        related_name="connectivity_logs",
+        verbose_name="主机",
+    )
+    check_time = models.DateTimeField(verbose_name="探测时间")
+    reachable = models.BooleanField(verbose_name="是否可达")
+    check_type = models.CharField(
+        max_length=32,
+        choices=CHECK_TYPE_CHOICES,
+        default="manual",
+        verbose_name="探测类型",
+    )
+    target_ip = models.GenericIPAddressField(verbose_name="探测IP")
+    command = models.CharField(max_length=255, verbose_name="执行命令")
+    duration_ms = models.PositiveIntegerField(default=0, verbose_name="耗时毫秒")
+    return_code = models.IntegerField(null=True, blank=True, verbose_name="返回码")
+    output = models.TextField(null=True, blank=True, verbose_name="输出内容")
+
+    class Meta:
+        db_table = "host_connectivity_log"
+        verbose_name = "主机连通性日志"
+        verbose_name_plural = verbose_name
+        ordering = ("-check_time", "-id")
+
+    def __str__(self):
+        result = "可达" if self.reachable else "不可达"
+        return f"{self.host.hostname}-{self.check_time}-{result}"

@@ -8,7 +8,10 @@ Django + Django REST Framework + Celery 主机管理系统。
 - 逻辑删除，查询默认过滤 `is_deleted=False`
 - 删除前占用检查
 - 主机 ping 探测接口：`POST /api/hosts/{id}/ping/`
+- 一键测试全部主机连通性：`POST /api/hosts/ping-all/`
+- 连通性日志查询：`GET /api/connectivity-logs/`
 - 每天 00:00 按城市和机房统计主机数量
+- 每天 00:05 自动探测全部主机连通性并写入日志
 - 请求耗时中间件，响应头返回 `X-Request-Cost-Time`
 
 ## 运行
@@ -52,3 +55,5 @@ CELERY_BEAT_SCHEDULE = {
 - `GET|POST /api/hosts/`
 - `GET|PUT|PATCH|DELETE /api/hosts/{id}/`
 - `POST /api/hosts/{id}/ping/`
+- `POST /api/hosts/ping-all/`
+- `GET /api/connectivity-logs/`

@@ -80,4 +80,8 @@ CELERY_BEAT_SCHEDULE = {
         "task": "hosts.tasks.generate_daily_host_statistics",
         "schedule": crontab(hour=0, minute=0),
     },
+    "check-all-hosts-connectivity": {
+        "task": "hosts.tasks.check_all_hosts_connectivity",
+        "schedule": crontab(hour=0, minute=5),
+    },
 }

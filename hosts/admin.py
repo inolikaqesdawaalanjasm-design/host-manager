@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import City, ComputerRoom, Employee, Host, HostDailyStatistic, Organization
+from .models import City, ComputerRoom, Employee, Host, HostConnectivityLog, HostDailyStatistic, Organization
 
 
 @admin.register(City)
@@ -51,3 +51,11 @@ class HostDailyStatisticAdmin(admin.ModelAdmin):
     list_display = ("id", "statistic_date", "city", "computer_room", "host_count")
     list_filter = ("statistic_date", "city", "computer_room")
     list_select_related = ("city", "computer_room")
+
+
+@admin.register(HostConnectivityLog)
+class HostConnectivityLogAdmin(admin.ModelAdmin):
+    list_display = ("id", "host", "target_ip", "reachable", "check_type", "duration_ms", "check_time")
+    list_filter = ("reachable", "check_type", "check_time")
+    search_fields = ("host__hostname", "target_ip", "command", "output")
+    list_select_related = ("host",)

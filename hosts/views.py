@@ -1,19 +1,18 @@
-import platform
-import subprocess
-
-from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import City, ComputerRoom, Employee, Host, Organization
+from .models import City, ComputerRoom, Employee, Host, HostConnectivityLog, HostDailyStatistic, Organization
 from .serializers import (
     CitySerializer,
     ComputerRoomSerializer,
     EmployeeSerializer,
+    HostConnectivityLogSerializer,
+    HostDailyStatisticSerializer,
     HostSerializer,
     OrganizationSerializer,
 )
+from .services import generate_daily_statistics, ping_all_hosts_and_log, ping_host_and_log
 
 
 class BaseModelViewSet(viewsets.ModelViewSet):
@@ -106,22 +105,57 @@ class HostViewSet(BaseModelViewSet):
     @action(methods=["post"], detail=True, url_path="ping")
     def ping_host(self, request, pk=None):
         host = self.get_object()
-        ping_count_param = "-n" if platform.system().lower() == "windows" else "-c"
+        result = ping_host_and_log(host, check_type="manual")
+        return Response(result)
 
-        try:
-            result = subprocess.run(
-                ["ping", ping_count_param, "1", host.ip_address],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=3,
-                check=False,
-            )
-            reachable = result.returncode == 0
-        except (subprocess.SubprocessError, OSError):
-            reachable = False
+    @action(methods=["post"], detail=False, url_path="ping-all")
+    def ping_all_hosts(self, request):
+        result = ping_all_hosts_and_log(check_type="batch")
+        return Response(result)
 
-        host.last_check_time = timezone.now()
-        host.last_check_result = reachable
-        host.save(update_fields=["last_check_time", "last_check_result", "updated_at"])
 
-        return Response({"reachable": reachable})
+class HostConnectivityLogViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = HostConnectivityLogSerializer
+
+    def get_queryset(self):
+        queryset = HostConnectivityLog.objects.select_related(
+            "host",
+            "host__computer_room",
+            "host__computer_room__city",
+        ).filter(is_deleted=False)
+        host_id = self.request.query_params.get("host")
+        reachable = self.request.query_params.get("reachable")
+
+        if host_id:
+            queryset = queryset.filter(host_id=host_id)
+        if reachable in ("true", "false"):
+            queryset = queryset.filter(reachable=reachable == "true")
+        return queryset.order_by("-check_time", "-id")
+
+    @action(methods=["post"], detail=False, url_path="run-scheduled-check")
+    def run_scheduled_check(self, request):
+        result = ping_all_hosts_and_log(check_type="scheduled")
+        return Response(result)
+
+
+class HostDailyStatisticViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = HostDailyStatisticSerializer
+
+    def get_queryset(self):
+        queryset = HostDailyStatistic.objects.select_related("city", "computer_room").filter(is_deleted=False)
+        statistic_date = self.request.query_params.get("statistic_date")
+        city_id = self.request.query_params.get("city")
+        computer_room_id = self.request.query_params.get("computer_room")
+
+        if statistic_date:
+            queryset = queryset.filter(statistic_date=statistic_date)
+        if city_id:
+            queryset = queryset.filter(city_id=city_id)
+        if computer_room_id:
+            queryset = queryset.filter(computer_room_id=computer_room_id)
+        return queryset.order_by("-statistic_date", "city_id", "computer_room_id")
+
+    @action(methods=["post"], detail=False, url_path="generate")
+    def generate(self, request):
+        result = generate_daily_statistics()
+        return Response(result)
