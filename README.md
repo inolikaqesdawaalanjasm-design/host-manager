@@ -1,6 +1,6 @@
 # 主机管理系统
 
-笔试题要求的 Django + Django REST Framework + Celery 主机管理系统。
+Django + Django REST Framework + Celery 主机管理系统。
 
 ## 功能
 
